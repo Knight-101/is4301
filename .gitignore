@@ -3,3 +3,7 @@ build/
 .env*
 !.env.example
 .DS_Store
+
+node_modules
+
+evidence/

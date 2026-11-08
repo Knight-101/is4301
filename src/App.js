@@ -1,3 +1,16 @@
-export default function App() {
-  return <main><h1>React assignment starter</h1></main>;
+import {useEffect,useState} from 'react';
+import {BrowserRouter,NavLink,Route,Routes,Navigate,useLocation,useNavigate} from 'react-router-dom';
+import {onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signInWithPopup,signOut} from 'firebase/auth';
+import {auth,googleProvider,authMessage} from './firebase';
+import {Home,Academics,Admission} from './Pages';
+import './App.css';
+function Protected({user,children}){const location=useLocation();return user?children:<Navigate to="/login" replace state={{from:location.pathname,notice:'Please log in to view Academics and Admission.'}}/>;}
+function Login({user}){
+ const [mode,setMode]=useState('login'),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const location=useLocation(),navigate=useNavigate();const destination=location.state?.from||'/academics';
+ const attempt=async(fn)=>{setError('');setBusy(true);try{await fn();navigate(destination,{replace:true});}catch(e){setError(authMessage(e));}finally{setBusy(false);}};
+ if(user)return <><h1>Account</h1><p className="message success">Signed in as {user.email}</p><NavLink to="/academics">Continue to Academics</NavLink></>;
+ return <><h1>{mode==='login'?'Log in':'Create account'}</h1>{location.state?.notice&&<p>{location.state.notice}</p>}{error&&<p role="alert" className="message">{error}</p>}<form onSubmit={e=>{e.preventDefault();attempt(()=>mode==='login'?signInWithEmailAndPassword(auth,email.trim(),password):createUserWithEmailAndPassword(auth,email.trim(),password));}}><label htmlFor="email">Email</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)}/><label htmlFor="password">Password</label><input id="password" type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength={6} required value={password} onChange={e=>setPassword(e.target.value)}/><button disabled={busy} type="submit">{busy?'Please wait…':mode==='login'?'Log in':'Sign up'}</button></form><button className="secondary" disabled={busy} onClick={()=>{setMode(mode==='login'?'signup':'login');setError('');}}>{mode==='login'?'Create account':'Back to Log in'}</button><button className="google" disabled={busy} onClick={()=>attempt(()=>signInWithPopup(auth,googleProvider))}>Continue with Google</button></>;
 }
+function Portal(){const [user,setUser]=useState(null),[loading,setLoading]=useState(true);useEffect(()=>onAuthStateChanged(auth,u=>{setUser(u);setLoading(false);}),[]);if(loading)return <main><p>Checking your session…</p></main>;return <><header><img src="/nus-logo.jpg" alt="National University of Singapore logo"/><nav aria-label="Main navigation"><NavLink to="/" end>Home</NavLink><NavLink to="/academics">Academics</NavLink><NavLink to="/admission">Admission</NavLink><NavLink to="/login">{user?'Account':'Login'}</NavLink>{user&&<><span className="session">Signed in: {user.email}</span><button onClick={()=>signOut(auth)}>Log out</button></>}</nav></header><main><Routes><Route path="/" element={<Home/>}/><Route path="/login" element={<Login user={user}/>}/><Route path="/academics" element={<Protected user={user}><Academics/></Protected>}/><Route path="/admission" element={<Protected user={user}><Admission/></Protected>}/><Route path="*" element={<h1>Page not found</h1>}/></Routes></main><footer>IS4301 assignment exercise · Sanskar Mohapatra</footer></>;}
+export default function App(){return <BrowserRouter><Portal/></BrowserRouter>;}
